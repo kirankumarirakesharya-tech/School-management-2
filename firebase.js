@@ -1,12 +1,13 @@
 // Firebase Setup for DCS Smart Portal
 const firebaseConfig = {
-  apiKey: "AIzaSyAqWfVIxOvP7vcV96n0as5FwDovhccTtLE",
-  authDomain: "smart-school-dilasagram.firebaseapp.com",
-  databaseURL: "https://smart-school-dilasagram-default-rtdb.firebaseio.com",
-  projectId: "smart-school-dilasagram",
-  storageBucket: "smart-school-dilasagram.appspot.com",
-  messagingSenderId: "646237863186",
-  appId: "1:646237863186:web:2d95dd8c983625f67587cb"
+  apiKey: "AIzaSyB2lmG_5W7N6wEkYG7XcRebLxIKnb4Nhoo",
+  authDomain: "school-management-2-7356b.firebaseapp.com",
+  databaseURL: "https://school-management-2-7356b-default-rtdb.firebaseio.com",
+  projectId: "school-management-2-7356b",
+  storageBucket: "school-management-2-7356b.firebasestorage.app",
+  messagingSenderId: "372406353550",
+  appId: "1:372406353550:web:f1b2e427c44402b4bbd3df",
+  measurementId: "G-NBLR44WEFV"
 };
 
 // Initialize Firebase
