@@ -79,6 +79,7 @@
     const attendanceRef = db.ref(`schools/dilasagram/classes/${className}/attendance`);
     const activityRef = db.ref(`schools/dilasagram/classes/${className}/activities`);
     const studentsRef = db.ref(`schools/dilasagram/classes/${className}/students`);
+    const storage = firebase.storage(); // ✅ Add this line
 
     let studentList = [];
     let marksChart = null;
