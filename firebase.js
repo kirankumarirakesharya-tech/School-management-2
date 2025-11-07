@@ -18,3 +18,4 @@ const db = firebase.database();
 const auth = firebase.auth();
 const storage = firebase.storage();
 console.log("✅ Firebase loaded:", firebase.apps.length);
+
