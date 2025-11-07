@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Principal Dashboard - DCS</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+  <!-- Firebase config -->
+  <script src="firebase.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <header class="topbar">
+    <img src="https://via.placeholder.com/80x80.png?text=Logo" alt="Logo">
+    <h2>Principal Dashboard</h2>
+  </header>
+
+  <main class="container">
+    <!-- Class Performance -->
+    <section class="card">
+      <h3>Class Performance Overview</h3>
+      <select id="classDropdown"></select>
+      <select id="examDropdown">
+        <option value="">-- Select Exam --</option>
+        <option>PeriodicTest1</option>
+        <option>HalfYearly</option>
+        <option>PeriodicTest3</option>
+        <option>Annual</option>
+      </select>
+      <canvas id="principalChart" width="500" height="250" style="display:none;"></canvas>
+    </section>
+
+    <!-- Complaints -->
+    <section class="card">
+      <h3>Complaints Management</h3>
+      <select id="complaintClass"></select>
+      <div id="complaintsTable" class="loading">Select class to load complaints...</div>
+    </section>
+
+    <!-- Timetable -->
+    <section class="card">
+      <h3>Class Timetable</h3>
+      <select id="timetableClass"></select>
+      <div id="timetableView" class="loading">Select class...</div>
+    </section>
+
+    <!-- Attendance Summary -->
+    <section class="card">
+      <h3>Attendance Summary</h3>
+      <select id="attendanceClass"></select>
+      <input type="date" id="attendanceDateFilter" value="">
+      <div id="attendanceSummary" class="loading">Select class and date...</div>
+    </section>
+
+    <!-- Activity Photos -->
+    <section class="card">
+      <h3>Activity Photos</h3>
+      <select id="photoClass"></select>
+      <div id="photoGallery"></div>
+    </section>
+  </main>
+
+  <footer class="footer"><a href="index.html" class="btn">Logout</a></footer>
+
+  <script>
+    // Populate Class Dropdowns (shared)
+    const classes = [];
+    for (let i = 1; i <= 10; i++) {
+      const secs = i === 8 ? ['A','B','C','D'] : ['A','B','C'];
+      secs.forEach(sec => {
+        const cls = `class${i}${sec}`;
+        classes.push(cls);
+        // Add to all dropdowns
+        ["classDropdown", "complaintClass", "timetableClass", "attendanceClass", "photoClass"].forEach(id => {
+          const opt = document.createElement("option");
+          opt.value = cls;
+          opt.textContent = `Class ${i}${sec}`;
+          document.getElementById(id).appendChild(opt);
+        });
+      });
+    }
+
+    let principalChart = null;
+
+    // Performance Chart
+    function loadClassPerformance() {
+      const cls = document.getElementById("classDropdown").value;
+      const exam = document.getElementById("examDropdown").value;
+      if (!cls || !exam) return;
+      const ref = db.ref(`schools/dilasagram/classes/${cls}/marks/${exam}`);
+      ref.once("value").then((snap) => {
+        const data = snap.val() || {};
+        const ctx = document.getElementById("principalChart").getContext("2d");
+        const students = Object.keys(data);
+        const averages = students.map(name => {
+          const subs = Object.values(data[name]);
+          return (subs.reduce((a, b) => a + b, 0) / (subs.length * 100)) * 100;
+        });
+        if (principalChart) principalChart.destroy();
+        document.getElementById("principalChart").style.display = "block";
+        principalChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: students,
+            datasets: [{ label: `${exam} %`, data: averages, backgroundColor: students.map(() => `hsl(${Math.random() * 360},70%,60%)`) }]
+          },
+          options: {
+            responsive: true,
+            scales: { y: { beginAtZero: true, max: 100 } },
+            plugins: { title: { display: true, text: `${cls} - ${exam} Marks %` } }
+          }
+        });
+      }).catch(err => console.error("Chart load error:", err));
+    }
+    document.getElementById("classDropdown").onchange = loadClassPerformance;
+    document.getElementById("examDropdown").onchange = loadClassPerformance;
+
+    // Complaints
+    document.getElementById("complaintClass").onchange = (e) => {
+      const cls = e.target.value;
+      if (!cls) return;
+      const ref = db.ref(`schools/dilasagram/classes/${cls}/complaints`);
+      ref.once("value", (snap) => {
+        const data = snap.val() || {};
+        let html = `<table><tr><th>Teacher</th><th>Complaint</th><th>Status</th><th>Action</th></tr>`;
+        for (let id in data) {
+          const c = data[id];
+          html += `<tr><td>${c.teacher}</td><td>${c.text}</td><td>${c.status}</td><td>
+            <button class="btn" onclick="resolveComplaint('${cls}', '${id}')">Resolve</button>
+            <button class="btn" onclick="deleteComplaint('${cls}', '${id}')">Delete</button>
+          </td></tr>`;
+        }
+        html += "</table>";
+        document.getElementById("complaintsTable").innerHTML = Object.keys(data).length ? html : "<p>No complaints.</p>";
+      });
+    };
+
+    window.resolveComplaint = (cls, id) => {
+      db.ref(`schools/dilasagram/classes/${cls}/complaints/${id}`).update({ status: "Resolved" }).then(() => location.reload());
+    };
+    window.deleteComplaint = (cls, id) => {
+      if (confirm("Delete?")) db.ref(`schools/dilasagram/classes/${cls}/complaints/${id}`).remove().then(() => location.reload());
+    };
+
+    // Timetable
+    document.getElementById("timetableClass").onchange = (e) => {
+      const cls = e.target.value;
+      if (!cls) return;
+      db.ref(`schools/dilasagram/classes/${cls}/timetable`).once("value", (snap) => {
+        const data = snap.val() || {};
+        let html = "<ul>";
+        Object.entries(data).forEach(([p, v]) => html += `<li>${p}: ${v}</li>`);
+        html += "</ul>";
+        document.getElementById("timetableView").innerHTML = html;
+      });
+    };
+
+    // Attendance Summary Table
+    document.getElementById("attendanceClass").onchange = 
+    document.getElementById("attendanceDateFilter").onchange = () => {
+      const cls = document.getElementById("attendanceClass").value;
+      const date = document.getElementById("attendanceDateFilter").value || new Date().toISOString().split('T')[0];
+      if (!cls) return;
+      attendanceRef.child(date).once("value", (snap) => {
+        const records = snap.val() || {};
+        let presentCount = 0;
+        let html = `<table><tr><th>Student</th><th>Status</th><th>% Present</th></tr>`;
+        Object.keys(records).forEach(name => {
+          const status = records[name];
+          if (status === "Present") presentCount++;
+          html += `<tr><td>${name}</td><td>${status}</td></tr>`;
+        });
+        const percent = studentList.length ? ((presentCount / Object.keys(records).length) * 100).toFixed(2) : 0;
+        html += `<tr><th colspan="2">Class % Present</th><th>${percent}%</th></tr></table>`;
+        document.getElementById("attendanceSummary").innerHTML = html;
+      });
+    };
+
+    // Photos
+    document.getElementById("photoClass").onchange = (e) => {
+      const cls = e.target.value;
+      if (!cls) return;
+      db.ref(`schools/dilasagram/classes/${cls}/activities`).once("value", (snap) => {
+        const data = snap.val() || {};
+        const gallery = document.getElementById("photoGallery");
+        gallery.innerHTML = "";
+        Object.values(data).slice(0, 20).forEach(img => {
+          const im = document.createElement("img");
+          im.src = img.url;
+          im.className = "gallery-img";
+          gallery.appendChild(im);
+        });
+      });
+    };
+  </script>
+</body>
+</html>

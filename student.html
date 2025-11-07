@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dilasagram Convent School | Student Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+  <script src="firebase.js"></script>
+</head>
+
+<body>
+  <header class="topbar">
+    <img src="https://via.placeholder.com/80x80.png?text=Logo" alt="School Logo">
+    <h1>Dilasagram Convent School</h1>
+    <h2>Student Dashboard</h2>
+  </header>
+
+  <main class="container">
+    <h3 id="studentInfo">Loading...</h3>
+
+    <!-- Marks Section -->
+    <section class="card">
+      <h3>My Exam Results</h3>
+      <select id="examSelect">
+        <option value="">-- Select Exam --</option>
+        <option>PeriodicTest1</option>
+        <option>HalfYearly</option>
+        <option>PeriodicTest3</option>
+        <option>Annual</option>
+      </select>
+      <div id="marksTable" class="loading">Loading marks...</div>
+    </section>
+
+    <!-- Timetable Section -->
+    <section class="card">
+      <h3>Class Timetable</h3>
+      <div id="timetableView" class="loading">Loading timetable...</div>
+    </section>
+
+    <!-- Attendance Table -->
+    <section class="card">
+      <h3>Attendance Record</h3>
+      <input type="text" id="attendanceSearch" placeholder="Search by date...">
+      <div id="attendanceView" class="loading">Loading attendance...</div>
+    </section>
+
+    <!-- Public Gallery -->
+    <section class="card">
+      <h3>School Activities Gallery</h3>
+      <div id="gallery"></div>
+    </section>
+  </main>
+
+  <footer class="footer"><a href="index.html" class="btn">Logout</a></footer>
+
+  <script>
+    // Load URL Params
+    const params = new URLSearchParams(window.location.search);
+    const className = params.get("class");
+    const studentId = params.get("id");
+    document.getElementById("studentInfo").innerText = `Student: ${studentId} | Class: ${className}`;
+
+    // Firebase References
+    const marksRef = db.ref(`schools/dilasagram/classes/${className}/marks`);
+    const timetableRef = db.ref(`schools/dilasagram/classes/${className}/timetable`);
+    const attendanceRef = db.ref(`schools/dilasagram/classes/${className}/attendance`);
+    const galleryRef = db.ref(`schools/dilasagram/public/gallery`);
+
+    // MARKS
+    const examSelect = document.getElementById("examSelect");
+    const marksTable = document.getElementById("marksTable");
+    examSelect.onchange = () => {
+      const exam = examSelect.value;
+      if (!exam) return marksTable.innerHTML = "";
+      marksTable.innerHTML = '<div class="spinner"></div> Loading...';
+      marksRef.child(exam).once("value", (snap) => {
+        const allMarks = snap.val() || {};
+        const marks = allMarks[studentId];
+        if (!marks) {
+          marksTable.innerHTML = "<p>No marks available for this exam.</p>";
+          return;
+        }
+        let html = `<table><tr><th>Subject</th><th>Marks</th></tr>`;
+        let total = 0, count = 0;
+        for (let subj in marks) {
+          html += `<tr><td>${subj}</td><td>${marks[subj]}</td></tr>`;
+          total += marks[subj]; count++;
+        }
+        const avg = (total / count).toFixed(2);
+        html += `<tr><th>Average</th><th>${avg}%</th></tr></table>`;
+        marksTable.innerHTML = html;
+      });
+    };
+
+    // TIMETABLE (one-time load)
+    timetableRef.once("value", (snap) => {
+      const data = snap.val() || {};
+      let html = "<ul>";
+      Object.entries(data).forEach(([p, v]) => html += `<li>${p}: ${v}</li>`);
+      html += "</ul>";
+      document.getElementById("timetableView").innerHTML = html;
+    });
+
+    // ATTENDANCE TABLE with Search
+    let attendanceData = {};
+    const attendanceView = document.getElementById("attendanceView");
+    const attendanceSearch = document.getElementById("attendanceSearch");
+    attendanceRef.once("value", (snap) => {
+      attendanceData = snap.val() || {};
+      renderAttendanceTable();
+    });
+    attendanceSearch.oninput = renderAttendanceTable;
+
+    function renderAttendanceTable() {
+      const search = attendanceSearch.value.toLowerCase();
+      let html = "<table><tr><th>Date</th><th>Status</th><th>Streak</th></tr>";
+      let streak = 0;
+      const sortedDates = Object.keys(attendanceData).sort().reverse().filter(date => date.toLowerCase().includes(search));
+      sortedDates.forEach(date => {
+        const status = attendanceData[date][studentId] || "Absent";
+        if (status === "Present") streak++; else streak = 0;
+        html += `<tr><td>${date}</td><td>${status}</td><td>${streak}</td></tr>`;
+      });
+      html += "</table>";
+      attendanceView.innerHTML = sortedDates.length ? html : "<p>No attendance records found.</p>";
+    }
+
+    // GALLERY (lazy-load)
+    galleryRef.once("value", (snap) => {
+      const data = snap.val() || {};
+      const gallery = document.getElementById("gallery");
+      Object.values(data).slice(0, 20).forEach((img) => {  // Limit to 20 for speed
+        const im = document.createElement("img");
+        im.src = img.url;
+        im.className = "gallery-img";
+        im.alt = img.name || "Activity";
+        gallery.appendChild(im);
+      });
+    });
+  </script>
+</body>
+</html>

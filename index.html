@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dilasagram Convent School - Smart Portal</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Firebase Core SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+  <!-- Your Firebase project configuration -->
+  <script src="firebase.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <img src="https://via.placeholder.com/80x80.png?text=Logo" alt="School Logo">
+    <h1>Dilasagram Convent School</h1>
+    <p>Smart School Management Portal</p>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Login</h2>
+      <label for="role">Select Role</label>
+      <select id="role">
+        <option value="">-- Choose Role --</option>
+        <option value="principal">Principal</option>
+        <option value="teacher">Teacher</option>
+        <option value="student">Student</option>
+      </select>
+
+      <label for="email">Email / Code ID</label>
+      <input type="text" id="email" placeholder="Enter Email or Student Code">
+
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Enter Password">
+
+      <label for="classSelect">Select Class</label>
+      <select id="classSelect"></select>
+
+      <button class="btn" id="loginBtn">Login</button>
+    </section>
+  </main>
+
+  <footer class="footer">© 2025 Dilasagram Convent School</footer>
+
+  <script>
+    // Auto-populate Class Select
+    const classSelect = document.getElementById("classSelect");
+    for (let i = 1; i <= 10; i++) {
+      const sections = (i === 8) ? ["A", "B", "C", "D"] : ["A", "B", "C"];
+      sections.forEach(sec => {
+        const option = document.createElement("option");
+        option.value = `class${i}${sec}`;
+        option.textContent = `Class ${i}${sec}`;
+        classSelect.appendChild(option);
+      });
+    }
+
+    // Login Handler
+    document.getElementById("loginBtn").addEventListener("click", async () => {
+      const role = document.getElementById("role").value;
+      const email = document.getElementById("email").value.trim();
+      const pass = document.getElementById("password").value.trim();
+      const cls = document.getElementById("classSelect").value;
+
+      if (!role || !email || !pass || !cls) return alert("Please fill all fields");
+
+      if (role === "student") {
+        window.location = `student.html?class=${cls}&id=${email}`;
+        return;
+      }
+
+      try {
+        await firebase.auth().signInWithEmailAndPassword(email, pass);
+        if (role === "principal") window.location = "dashboard.html";
+        else if (role === "teacher") window.location = `teacher.html?class=${cls}`;
+      } catch (err) {
+        alert("Login failed: " + err.message);
+      }
+    });
+
+    // Firebase Connection Test (one-time on load)
+    window.addEventListener("load", () => {
+      try {
+        const testRef = firebase.database().ref("connection_test");
+        testRef.set({ status: "connected", time: new Date().toLocaleString() })
+          .then(() => {
+            console.log("✅ Firebase connection successful!");
+            const msg = document.createElement("div");
+            msg.textContent = "✅ Connected to Firebase successfully!";
+            msg.style = "background:#e6ffed;color:#006400;padding:8px;border-radius:6px;margin:10px;text-align:center;font-weight:600;";
+            document.body.insertBefore(msg, document.body.firstChild);
+          })
+          .catch((err) => console.error("❌ Firebase write failed:", err));
+      } catch (error) {
+        console.error("❌ Firebase not initialized:", error);
+      }
+    });
+  </script>
+</body>
+</html>
